@@ -116,7 +116,28 @@ def get_domestic_balance():
     PATH = "/uapi/domestic-stock/v1/trading/inquire-balance"
     URL = f"{URL_BASE}/{PATH}"
     res = requests.get(URL, headers=headers, params=data)
-    print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+    #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+    return(res.json())
+
+def get_krw_usd_rate():
+    headers = {"content-type":"application/json",
+               "authorization":load_token(),
+               "appkey":APP_KEY,
+               "appsecret":APP_SECRET,
+               "tr_id":"CTRP6504R",
+               "custtype":"P"}
+    data = {"CANO":"63534364",
+            "ACNT_PRDT_CD":"01",
+            "WCRC_FRCR_DVSN_CD":"02",
+            "NATN_CD":"000",
+            "TR_MKET_CD":"00",
+            "INQR_DVSN_CD":"00"}
+    PATH = "/uapi/overseas-stock/v1/trading/inquire-present-balance"
+    URL = f"{URL_BASE}/{PATH}"
+    res = requests.get(URL, headers=headers, params=data)
+    #print(res.json())
+    #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+    return(float(res.json()["output2"][0]["frst_bltn_exrt"]))
 
 def get_rebalance_quantity():
     STOCK_TARGET = 0.7
