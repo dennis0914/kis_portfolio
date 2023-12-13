@@ -71,11 +71,13 @@ def get_account_balance():
         asset_balance[asset_name] = asset_value
     asset_balance["account_total"] = res.json()['output2']
     asset_balance["account_total"]["whol_weit_rt"] = '100.00'
-    for item in asset_balance:
-        if float(asset_balance[item]['whol_weit_rt']) == 0:
+    account_balance = dict()
+    for asset_type in asset_balance:
+        if float(asset_balance[asset_type]['whol_weit_rt']) == 0:
             continue
-        print(item, asset_balance[item])
-    return asset_balance
+        else:
+            account_balance[asset_type]=(asset_balance[asset_type])
+    return account_balance
 
 def get_overseas_balance():
     headers = {"content-type":"application/json",
@@ -93,7 +95,8 @@ def get_overseas_balance():
     PATH = "uapi/overseas-stock/v1/trading/inquire-balance"
     URL = f"{URL_BASE}/{PATH}"
     res = requests.get(URL, headers=headers, params=data)
-    print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+    #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+    return res.json()
 
 def get_domestic_balance():
     headers = {"content-type":"application/json",
