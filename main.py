@@ -1,136 +1,26 @@
 import requests
 import json
 import datetime
+import Authorization
+import Order
+import Account
 
-API_KEY_PATH = "./api_key.json"
-TOKEN_PATH = "./token.json"
 URL_BASE = "https://openapi.koreainvestment.com:9443"
-
-def get_token():
-    headers = {"content-type":"application/json"}
-    body = {"grant_type":"client_credentials",
-            "appkey":APP_KEY,
-            "appsecret":APP_SECRET}
-    PATH = "oauth2/tokenP"
-    URL = f"{URL_BASE}/{PATH}"
-    res = requests.post(URL, headers=headers, data=json.dumps(body))
-    return res.json()
-
-def load_token():
-    with open(TOKEN_PATH, "r") as token_file:
-        token = json.load(token_file)
-        token_file.close()
-    token_expire_datetime = datetime.datetime.strptime(token["access_token_token_expired"], "%Y-%m-%d %H:%M:%S")
-    if token_expire_datetime < datetime.datetime.now():
-        token = get_token()
-        print("access token renewed")
-        print(token)
-        with open(TOKEN_PATH, "w") as token_file:
-            json.dump(token, token_file)
-            token_file.close()
-        return "Bearer " + token["access_token"]
-    else:
-        return "Bearer " + token["access_token"]
-
-
-def get_account_balance():
-    headers = {"content-type":"application/json",
-               "authorization":load_token(),
-               "appkey":APP_KEY,
-               "appsecret":APP_SECRET,
-               "tr_id":"CTRP6548R",
-               "custtype":"P"}
-    data = {"CANO":"63534364",
-            "ACNT_PRDT_CD":"01",
-            "INQR_DVSN_1":"",
-            "BSPR_BF_DT_APLY_YN":""}
-    PATH = "uapi/domestic-stock/v1/trading/inquire-account-balance"
-    URL = f"{URL_BASE}/{PATH}"
-    res = requests.get(URL, headers=headers, params=data)
-    asset_balance = {"stock_domestic":None,
-                     "fund":None,
-                     "bond_domestic":None,
-                     "els_dls":None,
-                     "wrap":None,
-                     "trust":None,
-                     "rp":None,
-                     "stock_overseas":None,
-                     "bond_overseas":None,
-                     "gold":None,
-                     "cd_cp":None,
-                     "short_term_bond_domestic":None,
-                     "other":None,
-                     "short_term_bond_overseas":None,
-                     "els_dls_overseas":None,
-                     "overseas_currency":None,
-                     "deposit_cma":None,
-                     "applicant_deposit":None,
-                     "account_total":None}
-    #print(json.dumps(res.json(), indent = 4))
-    for asset_value, asset_name in zip(res.json()['output1'], asset_balance.keys()):
-        asset_balance[asset_name] = asset_value
-    asset_balance["account_total"] = res.json()['output2']
-    asset_balance["account_total"]["whol_weit_rt"] = '100.00'
-    account_balance = dict()
-    for asset_type in asset_balance:
-        if float(asset_balance[asset_type]['whol_weit_rt']) == 0:
-            continue
-        else:
-            account_balance[asset_type]=(asset_balance[asset_type])
-    return account_balance
-
-def get_overseas_balance():
-    headers = {"content-type":"application/json",
-               "authorization":load_token(),
-               "appkey":APP_KEY,
-               "appsecret":APP_SECRET,
-               "tr_id":"TTTS3012R",
-               "custtype":"P"}
-    data = {"CANO":"63534364",
-            "ACNT_PRDT_CD":"01",
-            "OVRS_EXCG_CD":"NASD",
-            "TR_CRCY_CD":"USD",
-            "CTX_AREA_FK200":"",
-            "CTX_AREA_NK200":""}
-    PATH = "uapi/overseas-stock/v1/trading/inquire-balance"
-    URL = f"{URL_BASE}/{PATH}"
-    res = requests.get(URL, headers=headers, params=data)
-    #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
-    return res.json()
-
-def get_domestic_balance():
-    headers = {"content-type":"application/json",
-               "authorization":load_token(),
-               "appkey":APP_KEY,
-               "appsecret":APP_SECRET,
-               "tr_id":"TTTC8434R",
-               "custtype":"P"}
-    data = {"CANO":"63534364",
-            "ACNT_PRDT_CD":"01",
-            "AFHR_FLPR_YN":"N",
-            "OFL_YN":"",
-            "INQR_DVSN":"02",
-            "UNPR_DVSN":"",
-            "FUND_STTL_ICLD_YN":"N",
-            "FNCG_AMT_AUTO_RDPT_YN":"N",
-            "PRCS_DVSN":"00",
-            "CTX_AREA_FK100":"",
-            "CTX_AREA_NK100":""}
-    PATH = "/uapi/domestic-stock/v1/trading/inquire-balance"
-    URL = f"{URL_BASE}/{PATH}"
-    res = requests.get(URL, headers=headers, params=data)
-    #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
-    return(res.json())
+APP_KEY = Authorization.get_app_key()
+APP_SECRET = Authorization.get_app_secret()
+TOKEN = Authorization.get_token()
+CANO = Account.get_cano()
+ACNT_PRDT_CD = Account.get_acnt_prdt_cd()
 
 def get_krw_usd_rate():
     headers = {"content-type":"application/json",
-               "authorization":load_token(),
+               "authorization":TOKEN,
                "appkey":APP_KEY,
                "appsecret":APP_SECRET,
                "tr_id":"CTRP6504R",
                "custtype":"P"}
-    data = {"CANO":"63534364",
-            "ACNT_PRDT_CD":"01",
+    data = {"CANO":CANO,
+            "ACNT_PRDT_CD":ACNT_PRDT_CD,
             "WCRC_FRCR_DVSN_CD":"02",
             "NATN_CD":"000",
             "TR_MKET_CD":"00",
@@ -142,11 +32,55 @@ def get_krw_usd_rate():
     #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
     return(float(res.json()["output2"][0]["frst_bltn_exrt"]))
 
+def get_current_weight():
+    total_account_evaluation = float(Account.get_account_balance()["account_total"]["tot_asst_amt"])
+    stock = Account.get_domestic_balance()['output1'][0]
+    bond = Account.get_overseas_balance()['output1'][0]
+    stock_current_price = float(stock["prpr"])
+    stock_current_quantity = int(stock["hldg_qty"])
+
+    bond_current_price = float(bond["now_pric2"]) * get_krw_usd_rate()
+    bond_current_quantity = int(bond["ord_psbl_qty"])
+    stock_current_weight = (stock_current_price * stock_current_quantity) / total_account_evaluation
+    bond_current_weight = (bond_current_price * bond_current_quantity) / total_account_evaluation
+    print(stock_current_weight, bond_current_weight)
+
 def get_rebalance_quantity():
-    STOCK_TARGET = 0.7
-    BOND_TARGET = 0.3
-    assert STOCK_TARGET + BOND_TARGET == 1
+    STOCK_WEIGHT_TARGET = 0.7
+    BOND_WEIGHT_TARGET = 0.3
+    assert STOCK_WEIGHT_TARGET + BOND_WEIGHT_TARGET == 1
+    account_balance = Account.get_account_balance()
+    domestic_balance = Account.get_domestic_balance()
+    overseas_balance = Account.get_overseas_balance()
+    stock = domestic_balance['output1'][0]
+    bond = overseas_balance['output1'][0]
 
-    asset_balance = get_account_balance()
+    assert stock["prdt_name"] == "KODEX 미국S&P500TR" and stock["pdno"] == "379800"
+    stock_current_price = float(stock["prpr"])
 
-get_domestic_balance()
+    assert bond["ovrs_item_name"] == "SPDR LONG TERM TREASURY ETF" and bond["ovrs_pdno"] == "SPTL"
+    bond_current_price = float(bond["now_pric2"])*get_krw_usd_rate()
+
+    total_account_evaluation = float(account_balance["account_total"]["tot_asst_amt"])
+
+    stock_target_quantity = int(total_account_evaluation * STOCK_WEIGHT_TARGET / stock_current_price)
+    bond_target_quantity = int(total_account_evaluation * BOND_WEIGHT_TARGET / bond_current_price)
+    assert (stock_target_quantity * stock_current_price + bond_target_quantity * bond_current_price) <= total_account_evaluation
+
+    return stock_target_quantity, bond_target_quantity
+
+def get_current_price():
+    headers = {"content-type":"application/json",
+               "authorization":TOKEN,
+               "appkey":APP_KEY,
+               "appsecret":APP_SECRET,
+               "tr_id":"FHKST01010100",
+               "custtype":"P"}
+    data = {"FID_COND_MRKT_DIV_CODE":"J",
+            "FID_INPUT_ISCD":379800}
+    PATH = "/uapi/domestic-stock/v1/quotations/inquire-price"
+    URL = f"{URL_BASE}/{PATH}"
+    res = requests.get(URL, headers=headers, params=data)
+    print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+
+get_current_weight()
