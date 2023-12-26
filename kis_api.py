@@ -206,6 +206,42 @@ class kis_api():
         bond_current_quantity = int(bond["ord_psbl_qty"])
         return (stock_current_quantity, bond_current_quantity)
 
+    def get_current_price_korea(self, product_code):
+        headers = {"content-type":"application/json",
+                   "authorization":self.TOKEN,
+                   "appkey":self.APP_KEY,
+                   "appsecret":self.APP_SECRET,
+                   "tr_id":"FHKST01010100",
+                   "custtype":"P"}
+        data = {"FID_COND_MRKT_DIV_CODE":"J",
+                "FID_INPUT_ISCD":str(product_code)}
+
+        PATH = "/uapi/domestic-stock/v1/quotations/inquire-price"
+        URL = f"{self.URL_BASE}/{PATH}"
+        res = requests.get(URL, headers=headers, params=data)
+        #print(res.json())
+        #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+        return(res.json())
+
+    def get_current_price_nyse(self, product_code):
+        headers = {"content-type":"application/json",
+                   "authorization":self.TOKEN,
+                   "appkey":self.APP_KEY,
+                   "appsecret":self.APP_SECRET,
+                   "tr_id":"HHDFS76200200",
+                   "custtype":"P"}
+        data = {"AUTH":"",
+                "EXCD":"AMS",
+                "SYMB":str(product_code)}
+
+        PATH = "/uapi/overseas-price/v1/quotations/price-detail"
+        URL = f"{self.URL_BASE}/{PATH}"
+        res = requests.get(URL, headers=headers, params=data)
+        #print(res.json())
+        #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
+        return(res.json())
+
+
     def issue_token(self):
         headers = {"content-type":"application/json"}
         body = {"grant_type":"client_credentials",
