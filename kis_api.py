@@ -168,7 +168,7 @@ class kis_api():
 
         data = {"CANO":self.account_number[:8],
                 "ACNT_PRDT_CD":self.account_number[8:],
-                "OVRS_EXCG_CD":"NYSE",
+                "OVRS_EXCG_CD":"AMEX",
                 "PDNO":str(product_code),
                 "ORD_QTY":str(order_quantity),
                 "OVRS_ORD_UNPR":str(order_price),
