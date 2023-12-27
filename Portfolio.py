@@ -1,5 +1,6 @@
 import time
-import kis_api
+import exchange_calendars as excal
+import datetime
 
 class Portfolio():
     def __init__(self, stock_target_weight, bond_target_weight, kis_api, account_number):
@@ -7,6 +8,8 @@ class Portfolio():
         self.bond_target_weight = bond_target_weight
         self.account_number = account_number
         self.kis_api = kis_api
+        self.krx_calendar = excal.get_calendar("XKRX")
+        self.nys_calendar = excal.get_calendar("XNYS")
 
         assert self.stock_target_weight + self.bond_target_weight <= 1
 
@@ -29,6 +32,12 @@ class Portfolio():
         elif str.lower(product_market) == "nyse":
             return self.kis_api.submit_order_nyse(order_quantity = order_quantity, product_code = product_code, order_price = self.kis_api.get_current_price("SPTL"), fake = fake)
 
+    def get_current_price(self, product_code, product_market):
+        if str.lower(product_market) == "korea":
+            return self.kis_api.get_current_price_korea(product_code)
+        elif str.lower(product_market) == "nyse":
+            return self.kis_api.get_current_price_nyse(product_code)
+
     def get_rebalance_quantity(self):
         account_balance = self.kis_api.get_account_balance()
         domestic_balance = self.kis_api.get_domestic_balance()
@@ -50,19 +59,23 @@ class Portfolio():
 
         return stock_target_quantity, bond_target_quantity
 
-    def rebalance_portfolio(self):
+    def rebalance_portfolio(self, fake = True):
         asset_current_quantities = self.kis_api.get_current_quantity()
         asset_target_quantities = self.get_rebalance_quantity()
         stock_order_quantity = asset_current_quantities[0] - asset_target_quantities[0]
         bond_order_quantity = asset_current_quantities[1] - asset_target_quantities[1]
-        self.kis_api.submit_order_domestic(stock_order_quantity, fake = True)
-        self.kis_api.submit_order_overseas(bond_order_quantity, fake = True)
+        self.submit_order("379800", stock_order_quantity, product_market="korea", fake=fake)
+        self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
 
     def start_trading(self):
         while True:
-            asset_weights = self.get_current_weight()
-            stock_current_weight = asset_weights[0]
-            bond_current_weight = asset_weights[1]
-            if abs(self.stock_target_weight - stock_current_weight) > 0.05 or abs(self.bond_target_weight - bond_current_weight) > 0.05:
-                self.rebalance_portfolio()
-                time.sleep(600)
+            if self.krx_calendar.is_session(datetime.date.today()) or self.nys_calendar.is_session(datetime.date.today()):
+                asset_weights = self.get_current_weight()
+                stock_current_weight = asset_weights[0]
+                bond_current_weight = asset_weights[1]
+                print(stock_current_weight, bond_current_weight)
+                if abs(self.stock_target_weight - stock_current_weight) > 0.05 or abs(self.bond_target_weight - bond_current_weight) > 0.05:
+                    self.rebalance_portfolio()
+                    time.sleep(60)
+            else:
+                time.sleep(3600)
