@@ -25,5 +25,4 @@ bot = Portfolio(stock_target_weight=0.7,
                 kis_api=kis_api,
                 account_number=account_number)
 
-print(bot.get_rebalance_quantity())
-print(bot.get_current_quantity())
+#bot.start_trading()
