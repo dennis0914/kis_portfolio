@@ -197,7 +197,8 @@ class kis_api():
         res = requests.get(URL, headers=headers, params=data)
         #print(res.json())
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
-        return(float(res.json()["output2"][0]["frst_bltn_exrt"]))
+
+        return(float(res.json()["output1"][0]["bass_exrt"]))
 
     def get_current_quantity(self):
         stock = self.get_domestic_balance()['output1'][0]
