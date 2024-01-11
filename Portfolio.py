@@ -59,23 +59,34 @@ class Portfolio():
 
         return stock_target_quantity, bond_target_quantity
 
-    def rebalance_portfolio(self, fake = True):
+    def rebalance_portfolio(self, fake):
         asset_current_quantities = self.kis_api.get_current_quantity()
         asset_target_quantities = self.get_rebalance_quantity()
         stock_order_quantity = asset_current_quantities[0] - asset_target_quantities[0]
         bond_order_quantity = asset_current_quantities[1] - asset_target_quantities[1]
-        self.submit_order("379800", stock_order_quantity, product_market="korea", fake=fake)
-        self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
+        utc_datetime = datetime.datetime.now(datetime.UTC)
+        if self.krx_calendar.is_trading_minute(utc_datetime):
+            self.submit_order("379800", stock_order_quantity, product_market="korea", fake=fake)
+            time_to_open = self.nys_calendar.next_open(utc_datetime.date()) - utc_datetime
+            time.sleep(int(time_to_open.total_seconds()))
+            self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
+        elif self.nys_calendar.is_trading_minute(utc_datetime):
+            self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
+            time_to_open = self.nys_calendar.next_open(utc_datetime.date()) - utc_datetime
+            time.sleep(int(time_to_open.total_seconds()))
+            self.submit_order("379800", stock_order_quantity, product_market="korea", fake=fake)
 
-    def start_trading(self):
+    def start_trading(self, fake = True):
         while True:
-            if self.krx_calendar.is_session(datetime.date.today()) or self.nys_calendar.is_session(datetime.date.today()):
+            utc_datetime = datetime.datetime.now(datetime.UTC)
+
+            if self.krx_calendar.is_trading_minute(utc_datetime) or self.nys_calendar.is_trading_minute(utc_datetime):
                 asset_weights = self.get_current_weight()
                 stock_current_weight = asset_weights[0]
                 bond_current_weight = asset_weights[1]
                 print(stock_current_weight, bond_current_weight)
                 if abs(self.stock_target_weight - stock_current_weight) > 0.05 or abs(self.bond_target_weight - bond_current_weight) > 0.05:
-                    self.rebalance_portfolio()
-                    time.sleep(60)
+                    self.rebalance_portfolio(fake = fake)
+
             else:
                 time.sleep(3600)
