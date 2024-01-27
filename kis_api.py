@@ -16,19 +16,28 @@ class kis_api():
             self.TOKEN = "Bearer " + token
         #else path to token file is given
         else:
-            with open(token_path, "r") as token_file:
-                token = json.load(token_file)
-                token_file.close()
-            token_expire_datetime = datetime.datetime.strptime(token["access_token_token_expired"], "%Y-%m-%d %H:%M:%S")
-            if token_expire_datetime < datetime.datetime.now():
+            try:
+                with open(token_path, "r") as token_file:
+                    token = json.load(token_file)
+                    token_file.close()
+                token_expire_datetime = datetime.datetime.strptime(token["access_token_token_expired"], "%Y-%m-%d %H:%M:%S")
+                if token_expire_datetime < datetime.datetime.now():
+                    token = self.issue_token()
+                    print("ACCESS TOKEN RENEWED")
+                    print(token)
+                    with open(token_path, "w") as token_file:
+                        json.dump(token, token_file)
+                        token_file.close()
+                    self.TOKEN = "Bearer " + token["access_token"]
+                else:
+                    self.TOKEN = "Bearer " + token["access_token"]
+            except:
                 token = self.issue_token()
-                print("access token renewed")
+                print("ACCESS TOKEN RENEWED")
                 print(token)
                 with open(token_path, "w") as token_file:
                     json.dump(token, token_file)
                     token_file.close()
-                self.TOKEN = "Bearer " + token["access_token"]
-            else:
                 self.TOKEN = "Bearer " + token["access_token"]
 
     def get_account_balance(self):
@@ -45,37 +54,7 @@ class kis_api():
         PATH = "uapi/domestic-stock/v1/trading/inquire-account-balance"
         URL = f"{self.URL_BASE}/{PATH}"
         res = requests.get(URL, headers=headers, params=data)
-        asset_balance = {"stock_domestic":None,
-                        "fund":None,
-                        "bond_domestic":None,
-                        "els_dls":None,
-                        "wrap":None,
-                        "trust":None,
-                        "rp":None,
-                        "stock_overseas":None,
-                        "bond_overseas":None,
-                        "gold":None,
-                        "cd_cp":None,
-                        "short_term_bond_domestic":None,
-                        "other":None,
-                        "short_term_bond_overseas":None,
-                        "els_dls_overseas":None,
-                        "overseas_currency":None,
-                        "deposit_cma":None,
-                        "applicant_deposit":None,
-                        "account_total":None}
-        #print(json.dumps(res.json(), indent = 4))
-        for asset_value, asset_name in zip(res.json()['output1'], asset_balance.keys()):
-            asset_balance[asset_name] = asset_value
-        asset_balance["account_total"] = res.json()['output2']
-        asset_balance["account_total"]["whol_weit_rt"] = '100.00'
-        account_balance = dict()
-        for asset_type in asset_balance:
-            if float(asset_balance[asset_type]['whol_weit_rt']) == 0:
-                continue
-            else:
-                account_balance[asset_type]=(asset_balance[asset_type])
-        return account_balance
+        return res.json()
 
     def get_overseas_balance(self):
         headers = {"content-type":"application/json",
@@ -120,7 +99,7 @@ class kis_api():
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
         return(res.json())
 
-    def submit_order_korea(self, order_quantity, order_price, product_code, fake):
+    def submit_order_domestic(self, order_quantity, order_price, product_code, fake):
         if fake:
             return "Fake order placed"
         #buy order
@@ -179,7 +158,7 @@ class kis_api():
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         return(res.json())
 
-    def get_krw_usd_rate(self):
+    def get_current_balance(self):
         headers = {"content-type":"application/json",
                 "authorization":self.TOKEN,
                 "appkey":self.APP_KEY,
@@ -195,6 +174,7 @@ class kis_api():
         PATH = "/uapi/overseas-stock/v1/trading/inquire-present-balance"
         URL = f"{self.URL_BASE}/{PATH}"
         res = requests.get(URL, headers=headers, params=data)
+        return(res.json())
         #print(res.json())
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
 
@@ -241,7 +221,6 @@ class kis_api():
         #print(res.json())
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
         return(res.json())
-
 
     def issue_token(self):
         headers = {"content-type":"application/json"}
