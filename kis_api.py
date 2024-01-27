@@ -99,7 +99,7 @@ class kis_api():
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
         return(res.json())
 
-    def submit_order_domestic(self, order_quantity, order_price, product_code, fake):
+    def submit_order_domestic(self, product_code, order_price, order_quantity, fake):
         if fake:
             return "Fake order placed"
         #buy order
@@ -127,28 +127,42 @@ class kis_api():
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         return(res.json())
 
-    def submit_order_nyse(self, product_code, order_quantity, order_price, fake):
+    def submit_order_overseas(self, asset_code, asset_market, order_price, order_quantity, fake):
         if fake:
             return "Fake order placed"
-        #buy order
-        if order_quantity > 0:
-            trading_id = "TTTT1002U"
-        #sell order
-        elif order_quantity < 0:
-            trading_id = "TTTT1006U"
-        else:
-            return None
+        order_trading_id_dict = {"NASD":{"BUY":"TTTT1002U",
+                                    "SELL":"TTTT1006U"},
+                            "NYSE":{"BUY":"TTTT1002U",
+                                    "SELL":"TTTT1006U"},
+                            "AMEX":{"BUY":"TTTT1002U",
+                                    "SELL":"TTTT1006U"},
+                            "SEHK":{"BUY":"TTTS1002U",
+                                    "SELL":"TTTS1001U"},
+                            "SHAA":{"BUY":"TTTS0202U",
+                                    "SELL":"TTTS1005U"},
+                            "SZAA":{"BUY":"TTTS0305U",
+                                    "SELL":"TTTS0304U"},
+                            "TKSE":{"BUY":"TTTS0308U",
+                                    "SELL":"TTTS0307U"},
+                            "HASE":{"BUY":"TTTS0311U",
+                                    "SELL":"TTTS0310U"},
+                            "VNSE":{"BUY":"TTTS0311U",
+                                    "SELL":"TTTS0310U"}
+                            }
+        order_type = "BUY" if order_quantity > 0 else "SELL"
+        trading_id = order_trading_id_dict[asset_market][order_type]
+
         headers = {"content-type":"application/json",
-                "authorization":self.TOKEN,
-                "appkey":self.APP_KEY,
-                "appsecret":self.APP_SECRET,
-                "tr_id":trading_id,
-                "custtype":"P"}
+            "authorization":self.TOKEN,
+            "appkey":self.APP_KEY,
+            "appsecret":self.APP_SECRET,
+            "tr_id":trading_id,
+            "custtype":"P"}
 
         data = {"CANO":self.account_number[:8],
                 "ACNT_PRDT_CD":self.account_number[8:],
                 "OVRS_EXCG_CD":"AMEX",
-                "PDNO":str(product_code),
+                "PDNO":str(asset_code),
                 "ORD_QTY":str(order_quantity),
                 "OVRS_ORD_UNPR":str(order_price),
                 "ORD_SVR_DVSN_CD":"0",

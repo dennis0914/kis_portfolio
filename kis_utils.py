@@ -72,7 +72,7 @@ def get_domestic_balance():
     return domestic_balance
 
 def get_asset_current_price(asset_code, asset_market, price_in_krw = True):
-    if asset_market == 'krx':
+    if asset_market == 'KRX':
         domestic_balance = get_domestic_balance()
         for domestic_asset in domestic_balance['output1']:
             if domestic_asset['pdno'] == asset_code:
@@ -88,7 +88,7 @@ def get_asset_current_price(asset_code, asset_market, price_in_krw = True):
 
 
 def get_asset_current_quantity(asset_code, asset_market):
-    if asset_market == 'krx':
+    if asset_market == 'KRX':
         domestic_balance = get_domestic_balance()
         for domestic_asset in domestic_balance['output1']:
             if domestic_asset['pdno'] == asset_code:
@@ -110,7 +110,7 @@ def submit_order_overseas(asset_code, asset_market, order_price, order_quantity,
     api.submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)
 
 def submit_order(asset_code, asset_market, order_price, order_quantity, fake = True):
-    if asset_market == 'krx':
+    if asset_market == 'KRX':
         submit_order_domestic(asset_code, order_price, order_quantity, fake)
     else:
         submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)

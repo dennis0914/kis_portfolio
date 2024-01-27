@@ -17,11 +17,10 @@ class Portfolio():
         total_weight = 0
         for asset in self.asset_list:
             total_weight += asset.target_weight
-
         assert total_weight <= 1
+        self.update_assets()
         print("portofolio initialized")
-        kis_utils.get_total_account_evaluation()
-
+    '''
     def get_current_weight(self):
         total_account_evaluation = float(kis_utils.get_account_balance()["account_total"]["tot_asst_amt"])
         stock = kis_utils.get_domestic_balance()['output1'][0]
@@ -34,39 +33,18 @@ class Portfolio():
         stock_current_weight = (stock_current_price * stock_current_quantity) / total_account_evaluation
         bond_current_weight = (bond_current_price * bond_current_quantity) / total_account_evaluation
         return(stock_current_weight, bond_current_weight)
+    '''
 
-    def submit_order(self, product_code, order_quantity, order_price = 0, product_market = "korea",  fake = True):
+    def submit_order(self, product_code, order_quantity, order_price = 0, product_market = "korea", fake = True):
         if str.lower(product_market) == "korea":
             return self.kis_utils.submit_order_korea(order_quantity = order_quantity, product_code = product_code, order_price = order_price, fake=fake)
         elif str.lower(product_market) == "nyse":
             return self.kis_utils.submit_order_nyse(order_quantity = order_quantity, product_code = product_code, order_price = self.kis_utils.get_current_price("SPTL"), fake = fake)
 
-    def get_current_price(self, product_code, product_market):
-        if str.lower(product_market) == "korea":
-            return self.kis_utils.get_current_price_korea(product_code)
-        elif str.lower(product_market) == "nyse":
-            return self.kis_utils.get_current_price_nyse(product_code)
-
-    def get_rebalance_quantity(self):
-        account_balance = self.kis_utils.get_account_balance()
-        domestic_balance = self.kis_utils.get_domestic_balance()
-        overseas_balance = self.kis_utils.get_overseas_balance()
-        stock = domestic_balance['output1'][0]
-        bond = overseas_balance['output1'][0]
-
-        assert stock["prdt_name"] == "KODEX 미국S&P500TR" and stock["pdno"] == "379800"
-        stock_current_price = float(stock["prpr"])
-
-        assert bond["ovrs_item_name"] == "SPDR LONG TERM TREASURY ETF" and bond["ovrs_pdno"] == "SPTL"
-        bond_current_price = float(bond["now_pric2"])*self.kis_utils.get_krw_usd_rate()
-
-        total_account_evaluation = float(account_balance["account_total"]["tot_asst_amt"])
-
-        stock_target_quantity = int(total_account_evaluation * self.stock_target_weight / stock_current_price)
-        bond_target_quantity = int(total_account_evaluation * self.bond_target_weight / bond_current_price)
-        assert (stock_target_quantity * stock_current_price + bond_target_quantity * bond_current_price) <= total_account_evaluation
-
-        return stock_target_quantity, bond_target_quantity
+    def update_assets(self):
+        account_total_evaluation = kis_utils.get_total_account_evaluation()
+        for assets in self.asset_list:
+            assets.update(account_total_evaluation)
 
     def rebalance_portfolio(self, fake):
         asset_current_quantities = self.kis_utils.get_current_quantity()
@@ -103,13 +81,18 @@ class Asset():
     def __init__(self, name, code, market, target_weight):
         self.name = name
         self.code = code
-        self.market = str.lower(market)
+
+        supported_market_list = ["KRX", "NASD", "NYSE", "AMEX", "SEHK", "SHAA", "SZAA", "TKSE", "HASE", "VNSE"]
+        self.market = str.upper(market)
+        assert self.market in supported_market_list, f"Asset must be in one of the following markets: {supported_market_list}"
+
         self.target_weight = target_weight
-        self.is_domestic = True if self.market == "krx" else False
+        self.is_domestic = True if self.market == "KRX" else False
         self.current_quantity = self.get_current_quantity()
         self.current_price = self.get_current_price()
-        self.total_evaluation = self.current_price * self.current_quantity
-
+        self.total_evaluation = self.currents_price * self.current_quantity
+        self.current_weight = 0
+        self.target_quantity = 0
 
     def get_current_quantity(self):
         return kis_utils.get_asset_current_quantity(self.code, self.market)
@@ -117,7 +100,9 @@ class Asset():
     def get_current_price(self):
         return kis_utils.get_asset_current_price(self.code, self.market)
 
-    def update(self):
+    def update(self, account_total_evaluation):
         self.current_price = self.get_current_price()
         self.current_quantity = self.get_current_quantity()
         self.total_evaluation = self.current_price * self.current_quantity
+        self.current_weight = self.total_evaluation / account_total_evaluation
+        self.target_quantity = int(account_total_evaluation * self.target_weight / self.current_price)
