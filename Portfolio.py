@@ -12,34 +12,29 @@ def set_kis_utils(account_number_or_account_number_path, app_key_or_key_path, to
 class Portfolio():
     def __init__(self, assets, rebalance_condition):
         self.asset_list = assets
-        self.krx_calendar = excal.get_calendar("XKRX")
-        self.nys_calendar = excal.get_calendar("XNYS")
+        exchange_calendar_code_dict = {"KRX":"XKRX",
+                                       "NASD":"XNYS",
+                                       "NYSE":"XNYS",
+                                       "AMEX":"XNYS",
+                                       "SEHK":"XHKG",
+                                       "SHAA":"XSHG",
+                                       "SZAA":"XSHG",
+                                       "TKSE":"XTKS",
+                                       "HASE":"XHKG",
+                                       "VNSE":"XHKG"}
+        self.exchange_calendars = []
+        for asset in self.asset_list:
+            if asset.market not in self.exchange_calendars:
+                self.exchange_calendars.append(asset.market)
+        self.exchange_calendars = [excal.get_calendar(exchange_calendar_code_dict[market]) for market in self.exchange_calendars]
         total_weight = 0
         for asset in self.asset_list:
             total_weight += asset.target_weight
+            if exchange_calendar_code_dict[asset.market] not in self.exchange_calendars:
+                self.exchange_calendars.append(exchange_calendar_code_dict[asset.market])
         assert total_weight <= 1
         self.update_assets()
         print("portofolio initialized")
-    '''
-    def get_current_weight(self):
-        total_account_evaluation = float(kis_utils.get_account_balance()["account_total"]["tot_asst_amt"])
-        stock = kis_utils.get_domestic_balance()['output1'][0]
-        bond = kis_utils.get_overseas_balance()['output1'][0]
-        stock_current_price = float(stock["prpr"])
-        stock_current_quantity = int(stock["hldg_qty"])
-
-        bond_current_price = float(bond["now_pric2"]) * self.kis_utils.get_krw_usd_rate()
-        bond_current_quantity = int(bond["ord_psbl_qty"])
-        stock_current_weight = (stock_current_price * stock_current_quantity) / total_account_evaluation
-        bond_current_weight = (bond_current_price * bond_current_quantity) / total_account_evaluation
-        return(stock_current_weight, bond_current_weight)
-    '''
-
-    def submit_order(self, product_code, order_quantity, order_price = 0, product_market = "korea", fake = True):
-        if str.lower(product_market) == "korea":
-            return self.kis_utils.submit_order_korea(order_quantity = order_quantity, product_code = product_code, order_price = order_price, fake=fake)
-        elif str.lower(product_market) == "nyse":
-            return self.kis_utils.submit_order_nyse(order_quantity = order_quantity, product_code = product_code, order_price = self.kis_utils.get_current_price("SPTL"), fake = fake)
 
     def update_assets(self):
         account_total_evaluation = kis_utils.get_total_account_evaluation()
@@ -53,10 +48,14 @@ class Portfolio():
         bond_order_quantity = asset_current_quantities[1] - asset_target_quantities[1]
         utc_datetime = datetime.datetime.now(datetime.UTC)
         if self.krx_calendar.is_trading_minute(utc_datetime):
-            self.submit_order("379800", stock_order_quantity, product_market="korea", fake=fake)
+            for asset in self.asset_list:
+                if asset.market == "KRX":
+                    kis_utils.submit_order(asset.code, asset.market, asset.get_current_price, (asset.target_quantity - asset.current_quantity), fake)
             time_to_open = self.nys_calendar.next_open(utc_datetime.date()) - utc_datetime
             time.sleep(int(time_to_open.total_seconds()))
-            self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
+            for asset in self.asset_list:
+                if asset.market in ["NASD", "NYSE", "AMEX"]:
+                    kis_utils.submit_order(asset.code, asset.market, asset.get_current_price, (asset.target_quantity - asset.current_quantity), fake)
         elif self.nys_calendar.is_trading_minute(utc_datetime):
             self.submit_order("SPTL", bond_order_quantity, product_market="nyse", fake=fake)
             time_to_open = self.nys_calendar.next_open(utc_datetime.date()) - utc_datetime
@@ -90,7 +89,7 @@ class Asset():
         self.is_domestic = True if self.market == "KRX" else False
         self.current_quantity = self.get_current_quantity()
         self.current_price = self.get_current_price()
-        self.total_evaluation = self.currents_price * self.current_quantity
+        self.total_evaluation = self.current_price * self.current_quantity
         self.current_weight = 0
         self.target_quantity = 0
 
