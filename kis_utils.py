@@ -26,7 +26,7 @@ def set_kis_api(account_number_or_account_number_path, app_key_or_key_path, toke
     api.set_token(token_path = token_or_token_path)
 
 def get_krw_usd_rate():
-    current_balance = api.get_current_price_nyse("SPY")
+    current_balance = api.get_current_price_overseas("SPY", "AMEX")
     return(float(current_balance["output"]['t_rate']))
 
 def get_account_balance():
@@ -50,7 +50,6 @@ def get_account_balance():
                 "deposit_cma":None,
                 "applicant_deposit":None,
                 "account_total":None}
-
     for asset_value, asset_name in zip(res['output1'], asset_balance.keys()):
         asset_balance[asset_name] = asset_value
         asset_balance["account_total"] = res['output2']
@@ -71,12 +70,15 @@ def get_domestic_balance():
     domestic_balance = api.get_domestic_balance()
     return domestic_balance
 
+def get_domestic_asset_price(asset_code):
+    return api.get_current_price_korea(asset_code)
+
 def get_asset_current_price(asset_code, asset_market, price_in_krw = True):
     if asset_market == 'KRX':
-        domestic_balance = get_domestic_balance()
-        for domestic_asset in domestic_balance['output1']:
-            if domestic_asset['pdno'] == asset_code:
-                return float(domestic_asset['prpr'])
+        #domestic_asset_price = get_domestic_asset_price(asset_code)
+        #print(domestic_asset_price)
+        #print(domestic_asset_price['stck_prpr'])
+        return float(get_domestic_asset_price(asset_code)['output']['stck_prpr'])
     else:
         overseas_balance = get_overseas_balance()
         for overseas_asset in overseas_balance['output1']:
@@ -86,13 +88,16 @@ def get_asset_current_price(asset_code, asset_market, price_in_krw = True):
                 else:
                     return float(overseas_asset['now_pric2'])
 
-
 def get_asset_current_quantity(asset_code, asset_market):
     if asset_market == 'KRX':
         domestic_balance = get_domestic_balance()
+        if domestic_balance['output1'] == []:
+            return 0
         for domestic_asset in domestic_balance['output1']:
             if domestic_asset['pdno'] == asset_code:
                 return int(domestic_asset['hldg_qty'])
+            else:
+                return 0
     else:
         overseas_balance = get_overseas_balance()
         for overseas_asset in overseas_balance['output1']:
