@@ -73,20 +73,14 @@ def get_domestic_balance():
 def get_domestic_asset_price(asset_code):
     return api.get_current_price_korea(asset_code)
 
+def get_overseas_asset_price(asset_code, asset_market):
+    return api.get_current_price_overseas(asset_code, asset_market)
+
 def get_asset_current_price(asset_code, asset_market, price_in_krw = True):
     if asset_market == 'KRX':
-        #domestic_asset_price = get_domestic_asset_price(asset_code)
-        #print(domestic_asset_price)
-        #print(domestic_asset_price['stck_prpr'])
         return float(get_domestic_asset_price(asset_code)['output']['stck_prpr'])
     else:
-        overseas_balance = get_overseas_balance()
-        for overseas_asset in overseas_balance['output1']:
-            if overseas_asset['ovrs_pdno'] == asset_code:
-                if price_in_krw:
-                    return float(overseas_asset['now_pric2'])*get_krw_usd_rate()
-                else:
-                    return float(overseas_asset['now_pric2'])
+        return float(get_overseas_asset_price(asset_code, asset_market)['output']['last'])*get_krw_usd_rate()
 
 def get_asset_current_quantity(asset_code, asset_market):
     if asset_market == 'KRX':
@@ -100,9 +94,13 @@ def get_asset_current_quantity(asset_code, asset_market):
                 return 0
     else:
         overseas_balance = get_overseas_balance()
+        if overseas_balance['output1'] == []:
+            return 0
         for overseas_asset in overseas_balance['output1']:
             if overseas_asset['ovrs_pdno'] == asset_code:
                 return int(overseas_asset['ord_psbl_qty'])
+            else:
+                return 0
 
 def get_total_account_evaluation():
     account_balance = get_account_balance()
@@ -120,5 +118,11 @@ def submit_order(asset_code, asset_market, order_price, order_quantity, fake = T
     else:
         submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)
 
-
-
+def check_order_filled(asset_code, asset_market, order_number, order_quantity, order_price):
+    if asset_market=='KRX':
+        order_conclusions=api.check_order_conclusion_domestic(asset_code)
+        for order in order_conclusions['output1']:
+            if order_number==order['odno']:
+                return int(order['rmn_qty'])
+            else:
+                return -1
