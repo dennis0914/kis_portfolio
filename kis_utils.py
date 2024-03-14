@@ -90,8 +90,7 @@ def get_asset_current_quantity(asset_code, asset_market):
         for domestic_asset in domestic_balance['output1']:
             if domestic_asset['pdno'] == asset_code:
                 return int(domestic_asset['hldg_qty'])
-            else:
-                return 0
+        return 0
     else:
         overseas_balance = get_overseas_balance()
         if overseas_balance['output1'] == []:
@@ -99,26 +98,19 @@ def get_asset_current_quantity(asset_code, asset_market):
         for overseas_asset in overseas_balance['output1']:
             if overseas_asset['ovrs_pdno'] == asset_code:
                 return int(overseas_asset['ord_psbl_qty'])
-            else:
-                return 0
+        return 0
 
 def get_total_account_evaluation():
     account_balance = get_account_balance()
     return(int(account_balance['account_total']['tot_asst_amt']))
 
-def submit_order_domestic(asset_code, order_price, order_quantity, fake = True):
-    api.submit_order_domestic(asset_code, order_price, order_quantity, fake)
-
-def submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake = True):
-    api.submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)
-
 def submit_order(asset_code, asset_market, order_price, order_quantity, fake = True):
     if asset_market == 'KRX':
-        submit_order_domestic(asset_code, order_price, order_quantity, fake)
+        return api.submit_order_domestic(asset_code, order_price, order_quantity, fake)
     else:
-        submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)
+        return api.submit_order_overseas(asset_code, asset_market, order_price, order_quantity, fake)
 
-def check_order_filled(asset_code, asset_market, order_number, order_quantity, order_price):
+def check_order_filled(asset_code, asset_market, order_number):
     if asset_market=='KRX':
         order_conclusions=api.check_order_conclusion_domestic(asset_code)
         for order in order_conclusions['output1']:
