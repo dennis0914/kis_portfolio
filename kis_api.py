@@ -1,6 +1,6 @@
 import requests
 import json
-import datetime
+from datetime import date, datetime, timedelta
 
 class kis_api():
     def __init__(self, app_key, app_secret, account_number):
@@ -20,8 +20,8 @@ class kis_api():
                 with open(token_path, "r") as token_file:
                     token = json.load(token_file)
                     token_file.close()
-                token_expire_datetime = datetime.datetime.strptime(token["access_token_token_expired"], "%Y-%m-%d %H:%M:%S")
-                if token_expire_datetime < datetime.datetime.now():
+                token_expire_datetime = datetime.strptime(token["access_token_token_expired"], "%Y-%m-%d %H:%M:%S")
+                if token_expire_datetime < datetime.now():
                     token = self.issue_token()
                     print("ACCESS TOKEN RENEWED")
                     print(token)
@@ -110,6 +110,8 @@ class kis_api():
             trading_id = "TTTC0801U"
         else:
             return None
+        order_quantity = abs(int(order_quantity))
+        order_price = int(order_price)
         headers = {"content-type":"application/json",
                 "authorization":self.TOKEN,
                 "appkey":self.APP_KEY,
@@ -119,7 +121,7 @@ class kis_api():
         data = {"CANO":self.account_number[:8],
                 "ACNT_PRDT_CD":self.account_number[8:],
                 "PDNO":str(product_code),
-                "ORD_DVSN":"01",
+                "ORD_DVSN":"00",
                 "ORD_QTY":str(order_quantity),
                 "ORD_UNPR":str(order_price)}
         PATH = "/uapi/domestic-stock/v1/trading/order-cash"
@@ -150,6 +152,7 @@ class kis_api():
                                     "SELL":"TTTS0310U"}
                             }
         order_type = "BUY" if order_quantity > 0 else "SELL"
+        order_quantity = abs(int(order_quantity))
         trading_id = order_trading_id_dict[asset_market][order_type]
 
         headers = {"content-type":"application/json",
@@ -161,7 +164,7 @@ class kis_api():
 
         data = {"CANO":self.account_number[:8],
                 "ACNT_PRDT_CD":self.account_number[8:],
-                "OVRS_EXCG_CD":"AMEX",
+                "OVRS_EXCG_CD":asset_market,
                 "PDNO":str(asset_code),
                 "ORD_QTY":str(order_quantity),
                 "OVRS_ORD_UNPR":str(order_price),
@@ -189,10 +192,6 @@ class kis_api():
         URL = f"{self.URL_BASE}/{PATH}"
         res = requests.get(URL, headers=headers, params=data)
         return(res.json())
-        #print(res.json())
-        #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
-
-        return(float(res.json()["output1"][0]["bass_exrt"]))
 
     def get_current_quantity(self):
         stock = self.get_domestic_balance()['output1'][0]
@@ -218,7 +217,16 @@ class kis_api():
         #print(json.dumps(res.json(), indent = 4, ensure_ascii = False))
         return(res.json())
 
-    def get_current_price_nyse(self, product_code):
+    def get_current_price_overseas(self, asset_code, asset_market):
+        exchange_code_dict = {"NASD":"NAS",
+                              "NYSE":"NYS",
+                              "AMEX":"AMS",
+                              "SEHK":"HKS",
+                              "SHAA":"SHS",
+                              "SZAA":"SZS",
+                              "TKSE":"TSE",
+                              "HASE":"HNX",
+                              "VNSE":"HSX"}
         headers = {"content-type":"application/json",
                    "authorization":self.TOKEN,
                    "appkey":self.APP_KEY,
@@ -226,8 +234,8 @@ class kis_api():
                    "tr_id":"HHDFS76200200",
                    "custtype":"P"}
         data = {"AUTH":"",
-                "EXCD":"AMS",
-                "SYMB":str(product_code)}
+                "EXCD":exchange_code_dict[asset_market],
+                "SYMB":str(asset_code)}
 
         PATH = "/uapi/overseas-price/v1/quotations/price-detail"
         URL = f"{self.URL_BASE}/{PATH}"
@@ -245,3 +253,29 @@ class kis_api():
         URL = f"{self.URL_BASE}/{PATH}"
         res = requests.post(URL, headers=headers, data=json.dumps(body))
         return res.json()
+
+    def check_order_conclusion_domestic(self, asset_code=""):
+        headers = {"content-type":"application/json",
+                   "authorization":self.TOKEN,
+                   "appkey":self.APP_KEY,
+                   "appsecret":self.APP_SECRET,
+                   "tr_id":"TTTC8001R",
+                   "custtype":"P"}
+        data = {"CANO":self.account_number[:8],
+                "ACNT_PRDT_CD":self.account_number[8:],
+                "INQR_STRT_DT":(date.today()-timedelta(weeks=12)).strftime("%Y%m%d"),
+                "INQR_END_DT":date.today().strftime("%Y%m%d"),
+                "SLL_BUY_DVSN_CD":"00",
+                "INQR_DVSN":"00",
+                "PDNO":asset_code,
+                "CCLD_DVSN":"00",
+                "ORD_GNO_BRNO":"",
+                "ODNO":"",
+                "INQR_DVSN_3":"00",
+                "INQR_DVSN_1":"",
+                "CTX_AREA_FK100":"",
+                "CTX_AREA_NK100":""}
+        PATH = "/uapi/overseas-stock/v1/trading/inquire-present-balance"
+        URL = f"{self.URL_BASE}/{PATH}"
+        res = requests.get(URL, headers=headers, params=data)
+        return(res.json())
